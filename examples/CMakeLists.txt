@@ -193,6 +193,11 @@ if (MFEM_USE_SUNDIALS)
   add_subdirectory(sundials)
 endif()
 
+# Include the examples/epic directory if EPIC is enabled.
+if (MFEM_USE_EPIC)
+  add_subdirectory(epic)
+endif()
+
 if(MFEM_USE_CALIPER)
   add_subdirectory(caliper)
 endif()
