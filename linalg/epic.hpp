@@ -27,6 +27,9 @@
 #include "solvers.hpp"
 #include <Epic.h>
 
+//Jau-Uei: to use SundialsNVector
+#include "sundials.hpp"
+
 namespace mfem
 {
 
@@ -40,7 +43,7 @@ class EPICSolver : public ODESolver
 protected:
     EPICNumJacDelta Delta;
     Operator* Jtv;
-    N_Vector temp;
+    SundialsNVector* temp;
     int m[2];
 
     bool exactJacobian;
@@ -48,7 +51,7 @@ protected:
     #ifdef MFEM_USE_MPI
     bool Parallel() const
     {
-        return (N_VGetVectorID(temp) != SUNDIALS_NVEC_SERIAL);
+    	return (temp->GetNVectorID() != SUNDIALS_NVEC_SERIAL);
     }
     #else
     bool Parallel() const { return false; }
