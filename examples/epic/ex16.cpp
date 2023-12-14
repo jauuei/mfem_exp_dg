@@ -144,7 +144,10 @@ int main(int argc, char *argv[])
    double kappa = 0.5;
    bool visualization = true;
    bool visit = false;
+   bool paraview = false;
    int vis_steps = 5;
+
+   bool exactJac=false;
 
    int precision = 8;
    cout.precision(precision);
@@ -180,8 +183,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
                   "--no-visit-datafiles",
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
+   args.AddOption(&paraview, "-paraview", "--paraview-datafiles", "-no-paraview",
+                  "--no-paraview-datafiles",
+                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+   args.AddOption(&exactJac, "-exJac", "--exact-Jaccobian", "-no-exJac", "--no-exact-Jaccobian",
+                  "Use exact Jaccobian or not (For EPIC).");
    args.Parse();
    if (!args.Good())
    {
@@ -207,6 +215,7 @@ int main(int argc, char *argv[])
    {
       mesh->UniformRefinement();
    }
+
 
    // 4. Define the vector finite element space representing the current and the
    //    initial temperature, u_ref.
@@ -247,6 +256,22 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
+   ParaViewDataCollection* paraview_dc = nullptr;
+   paraview_dc = new ParaViewDataCollection("Example16", mesh);
+   paraview_dc->RegisterField("temperature",&u_gf);
+   paraview_dc->SetLevelsOfDetail(order);
+   paraview_dc->SetDataFormat(VTKFormat::BINARY);
+   paraview_dc->SetHighOrderOutput(true);
+   if (paraview)
+   {
+	   //paraview_dc->SetPrefixPath(folderPath);
+	   paraview_dc->SetCycle(0);
+	   paraview_dc->SetTime(0.0);
+	   paraview_dc->Save();
+   }
+
+
+
    socketstream sout;
    if (visualization)
    {
@@ -286,8 +311,8 @@ int main(int argc, char *argv[])
       case 6: ode_solver = new SDIRK23Solver(2); break;
       case 7: ode_solver = new SDIRK33Solver; break;
       // EPIC 
-      case 8: ode_solver = new EPI2();break;
-      case 9: ode_solver = new EPIRK4(); break;
+      case 8: ode_solver = new EPI2(exactJac);break;
+      case 9: ode_solver = new EPIRK4(exactJac); break;
    }
 
    // Initialize integrators
@@ -332,6 +357,12 @@ int main(int argc, char *argv[])
             visit_dc.SetTime(t);
             visit_dc.Save();
          }
+
+         if (paraview){
+             paraview_dc->SetCycle(ti);
+             paraview_dc->SetTime(t);
+             paraview_dc->Save();
+         }
       }
    }
    tic_toc.Stop();
@@ -353,6 +384,7 @@ int main(int argc, char *argv[])
    // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
+   delete paraview_dc;
 
    return 0;
 }
@@ -502,7 +534,7 @@ ConductionOperator::~ConductionOperator()
    delete K;
    delete dK;
    delete J_K;
-   delete jac;
+   //delete jac; // somehow this delete will cause segment fault, not quite sure the reason
 }
 
 ImplicitSolveOperator::ImplicitSolveOperator(ConductionOperator *oper_, const SparseMatrix* M_, double dt_, const Vector* x_):

@@ -16,43 +16,42 @@
 namespace mfem
 {
 
-EPICSolver::EPICSolver(bool exactJacobian_, EPICNumJacDelta delta)
+EPICSolver::EPICSolver(bool _exactJacobian, EPICNumJacDelta _delta)
 {
+   saved_global_size = 0;
+
    // Allocate an empty serial N_Vector
    temp = new SundialsNVector();
 
    m[0] = 10;
    m[1] = 10;
 
-   exactJacobian = exactJacobian_;
+   exactJacobian = _exactJacobian;
    Jtv = NULL;
-   Delta = delta;
+   Delta = _delta;
 }
 
 #ifdef MFEM_USE_MPI
-EPICSolver::EPICSolver(MPI_Comm comm)
+EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, EPICNumJacDelta _delta)
 {
+   saved_global_size = 0;
+
    m[0] = 10;
    m[1] = 10;
 
-   // Allocate an empty vector
-   if (comm == MPI_COMM_NULL)
-   {
-      // Allocate an empty serial N_Vector
-	  temp = new SundialsNVector();
-   }
-   else
-   {
-      // Allocate an empty parallel N_Vector
-	  temp = new SundialsNVector(comm);
-	  MFEM_VERIFY(temp, "error in N_VNewEmpty_Serial()");
-   }
+   // Allocate an empty parallel N_Vector
+  temp = new SundialsNVector(_comm);
+
+  exactJacobian = _exactJacobian;
+  Jtv = NULL;
+  Delta = _delta;
 }
 #endif
 
 int EPICSolver::RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data)
 {
    // Get data from N_Vectors
+	// At this point the up-to-date data for N_Vector y and ydot is on the device.
    const SundialsNVector mfem_y(y);
    SundialsNVector mfem_ydot(ydot);
 
@@ -69,6 +68,7 @@ int EPICSolver::RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data
 
 int EPICSolver::Jacobian(N_Vector v, N_Vector Jv, realtype t, N_Vector y, N_Vector fy, void *user_data, N_Vector tmp)
 {
+	// Similar to "GradientMult" in "KINSolver". See also how function "Jtv" is constructed in the examples of EPIK
     // Get data from N_Vectors
    const SundialsNVector mfem_v(v);
    SundialsNVector mfem_Jv(Jv);
@@ -76,7 +76,6 @@ int EPICSolver::Jacobian(N_Vector v, N_Vector Jv, realtype t, N_Vector y, N_Vect
    EPICSolver *self = static_cast<EPICSolver*>(user_data);
 
    // Compute J(t, y) v
-   // TODO:may need to change the method. Now we consider Jtv as an Operator*
    self->Jtv->Mult(mfem_v, mfem_Jv);
 
    return 0;
@@ -87,44 +86,59 @@ void EPICSolver::Init(TimeDependentOperator &f)
     ODESolver::Init(f);
 	    
     long local_size = f.Height();
-    long global_size = 0;
 #ifdef MFEM_USE_MPI
+    long global_size = 0;
     if (Parallel())
     {
         MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM,
                       temp->GetComm());
     }
 #endif
-    //MFEM_ASSERT(!Parallel(),"EPIC library has to be used with MPI");
-    // have to use MPI
-    temp->SetSize(local_size, global_size);
+
+    // TODO: may need "sundials_mem" (i.e., the problem size has changed since the last Init() call)
+    //       when using AMR framework. See line 716 in sundials.cpp
+    if (!Parallel())
+    {
+    	temp->SetSize(local_size);
+    }
+#ifdef MFEM_USE_MPI
+    else
+    {
+    	temp->SetSize(local_size, global_size);
+    	saved_global_size = global_size;
+    }
+#endif
 
 }
 
 EPI2::EPI2(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+EPI2::EPI2(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
 
 void EPI2::Init(TimeDependentOperator &f)
 {
     EPICSolver::Init(f);
     long local_size = f.Height();
+    long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
-       integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,local_size);
+       integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
     } else {
-       integrator = new Epi2_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,local_size);
+       integrator = new Epi2_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
     }
 
 }
 
 EPIRK4::EPIRK4(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
 
 void EPIRK4::Init(TimeDependentOperator &f)
 {
     EPICSolver::Init(f);
     long local_size = f.Height();
+    long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
-       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,local_size);
+       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
     } else {
-       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,local_size);
+       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
     }
 }
 
@@ -133,12 +147,14 @@ void EPICSolver::Step(Vector &x, double &t, double &dt)
    temp->MakeRef(x, 0, x.Size());
    MFEM_VERIFY(temp->Size() == x.Size(), "size mismatch");
 
-   // Reinitialize CVODE memory if needed (TODO: not sure if we need it)
+   // Reinitialize CVODE memory if needed (TODO: needed if we use "sundials_mem")
 
    // XXX:GetGradient is assumed to be implemented through SetOperator(&op)
    // i.e., see ex10p.cpp in sundials examples. The implementation is carried in
    // ReducedSystemOperator::GetGradient(const Vector &k).
-   Jtv = &(this->f->GetGradient(x));
+   if (exactJacobian) {
+	   Jtv = &(this->f->GetGradient(x));
+   }
 }
 
 void EPI2::Step(Vector &x, double &t, double &dt)

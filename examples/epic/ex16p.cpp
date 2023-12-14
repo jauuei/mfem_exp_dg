@@ -70,6 +70,8 @@ public:
                       const Vector &u);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
+   //virtual Operator& GetGradient(const Vector &k) const;
+
 
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
@@ -86,6 +88,8 @@ public:
 
    /// Update the diffusion BilinearForm K using the given true-dof vector `u`.
    void SetParameters(const Vector &u);
+
+
 
    virtual ~ConductionOperator();
 };
@@ -112,7 +116,10 @@ int main(int argc, char *argv[])
    double kappa = 0.5;
    bool visualization = true;
    bool visit = false;
+   bool paraview = false;
    int vis_steps = 5;
+
+   bool exactJac=false;
 
    int precision = 8;
    cout.precision(precision);
@@ -150,8 +157,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
                   "--no-visit-datafiles",
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
+   args.AddOption(&paraview, "-paraview", "--paraview-datafiles", "-no-paraview",
+                  "--no-paraview-datafiles",
+                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+   args.AddOption(&exactJac, "-exJac", "--exact-Jaccobian", "-no-exJac", "--no-exact-Jaccobian",
+                  "Use exact Jaccobian or not (For EPIC).");
    args.Parse();
    if (!args.Good())
    {
@@ -213,6 +225,9 @@ int main(int argc, char *argv[])
 
    ParGridFunction u_gf(&fespace);
 
+   ParGridFunction p_gf(&fespace);
+   p_gf=myid;
+
    // 7. Set the initial conditions for u. All boundaries are considered
    //    natural.
    FunctionCoefficient u_0(InitialTemperature);
@@ -243,6 +258,21 @@ int main(int argc, char *argv[])
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
       visit_dc.Save();
+   }
+
+   ParaViewDataCollection* paraview_dc = nullptr;
+   paraview_dc = new ParaViewDataCollection("Example16-Parallel", pmesh);
+   paraview_dc->RegisterField("temperature",&u_gf);
+   paraview_dc->RegisterField("proc",&p_gf);
+   paraview_dc->SetLevelsOfDetail(order);
+   paraview_dc->SetDataFormat(VTKFormat::BINARY);
+   paraview_dc->SetHighOrderOutput(true);
+   if (paraview)
+   {
+	   //paraview_dc->SetPrefixPath(folderPath);
+	   paraview_dc->SetCycle(0);
+	   paraview_dc->SetTime(0.0);
+	   paraview_dc->Save();
    }
 
    socketstream sout;
@@ -282,7 +312,7 @@ int main(int argc, char *argv[])
    // 9. Define the ODE solver used for time integration.
    double t = 0.0;
    ODESolver *ode_solver = NULL;
-   EPICSolver *epic_solver = NULL;
+   //EPICSolver *epic_solver = NULL;
    switch (ode_solver_type)
    {
       // MFEM explicit methods
@@ -295,11 +325,8 @@ int main(int argc, char *argv[])
       case 6: ode_solver = new SDIRK23Solver(2); break;
       case 7: ode_solver = new SDIRK33Solver; break;
       // EPIC
-      case 8:
-         epic_solver = new EPICSolver();
-	 epic_solver->Init(oper);
-	 ode_solver = epic_solver;
-	 break;
+      case 8: ode_solver = new EPI2(MPI_COMM_WORLD,exactJac);break;
+      case 9: ode_solver = new EPIRK4(MPI_COMM_WORLD,exactJac);break;
    }
 
    // Initialize MFEM integrators
@@ -347,6 +374,12 @@ int main(int argc, char *argv[])
             visit_dc.SetCycle(ti);
             visit_dc.SetTime(t);
             visit_dc.Save();
+         }
+
+         if (paraview){
+             paraview_dc->SetCycle(ti);
+             paraview_dc->SetTime(t);
+             paraview_dc->Save();
          }
       }
       oper.SetParameters(u);
@@ -480,6 +513,8 @@ ConductionOperator::~ConductionOperator()
    delete M;
    delete K;
 }
+
+
 
 double InitialTemperature(const Vector &x)
 {

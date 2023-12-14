@@ -41,6 +41,8 @@ typedef void (*JacobianFun)(const realtype t, const Vector &y, const Vector& v, 
 class EPICSolver : public ODESolver
 {
 protected:
+	long saved_global_size;    ///< Global vector length on last initialization.
+
     EPICNumJacDelta Delta;
     Operator* Jtv;
     SundialsNVector* temp;
@@ -48,18 +50,21 @@ protected:
 
     bool exactJacobian;
 
-    #ifdef MFEM_USE_MPI
+#ifdef MFEM_USE_MPI
     bool Parallel() const
     {
-    	return (temp->GetNVectorID() != SUNDIALS_NVEC_SERIAL);
+    	return (temp->MPIPlusX() || temp->GetNVectorID() == SUNDIALS_NVEC_PARALLEL);
     }
-    #else
+#else
     bool Parallel() const { return false; }
-    #endif
+#endif
 
 public:
     EPICSolver(bool exactJacobian, EPICNumJacDelta delta=&DefaultDelta);
-    EPICSolver(MPI_Comm comm);
+
+#ifdef MFEM_USE_MPI
+    EPICSolver(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta=&DefaultDelta);
+#endif
 
     static int RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data);
     static int Jacobian(N_Vector v, N_Vector Jv, realtype t,
@@ -76,6 +81,11 @@ protected:
     Epi2_KIOPS* integrator;
 public:
     EPI2(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+
+#ifdef MFEM_USE_MPI
+    EPI2(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+#endif
+
     virtual void Init(TimeDependentOperator &f);
     virtual void Step(Vector &x, double &t, double &dt);
 
@@ -88,6 +98,11 @@ protected:
     EpiRK4SC_KIOPS* integrator;
 public:
     EPIRK4(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+
+#ifdef MFEM_USE_MPI
+    EPIRK4(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+#endif
+
     virtual void Init(TimeDependentOperator &f);
     virtual void Step(Vector &x, double &t, double &dt);
 
