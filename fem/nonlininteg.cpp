@@ -88,6 +88,14 @@ void NonlinearFormIntegrator::AssembleFaceVector(
               " is not overloaded!");
 }
 
+void NonlinearFormIntegrator::AssembleFaceVector(
+   const FiniteElement &el1, const FiniteElement &el2,
+   FaceElementTransformations &Tr, const Vector &elfun, const Vector &melfun, Vector &elvect)
+{
+   mfem_error("NonlinearFormIntegrator::AssembleFaceVector"
+              "(mixed version) is not overloaded!");
+}
+
 void NonlinearFormIntegrator::AssembleElementGrad(
    const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun,
    DenseMatrix &elmat)

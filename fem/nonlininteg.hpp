@@ -64,6 +64,13 @@ public:
                                    FaceElementTransformations &Tr,
                                    const Vector &elfun, Vector &elvect);
 
+   /// @brief Perform the local action of the NonlinearFormIntegrator resulting
+   /// from a face integral term along with a mixed finite element space.
+   virtual void AssembleFaceVector(const FiniteElement &el1,
+                                   const FiniteElement &el2,
+                                   FaceElementTransformations &Tr,
+                                   const Vector &elfun, const Vector &melfun, Vector &elvect);
+
    /// Assemble the local gradient matrix
    virtual void AssembleElementGrad(const FiniteElement &el,
                                     ElementTransformation &Tr,

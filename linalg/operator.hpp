@@ -88,6 +88,12 @@ public:
    /// Operator application: `y=A(x)`.
    virtual void Mult(const Vector &x, Vector &y) const = 0;
 
+   /// Operator application: `y=A(x, mx)`.
+   // Note: Given that all pure virtual function has to be implemented in the inherited class
+   //       (unless the inherited class is still a base class), the Mult here is claimed to be
+   //       a virtual function.
+   virtual void Mult(const Vector &x, const Vector &mx,  Vector &y) const;
+
    /** @brief Action of the transpose operator: `y=A^t(x)`. The default behavior
        in class Operator is to generate an error. */
    virtual void MultTranspose(const Vector &x, Vector &y) const
@@ -401,6 +407,11 @@ public:
        k solves the algebraic equation F(@a x, k, t) = G(@a x, t) and t is the
        current time. */
    virtual void Mult(const Vector &x, Vector &y) const;
+
+   /** @brief Perform the action of the operator: @a y = k = f(@a x, @a mx t), where
+       k solves the algebraic equation F(@a x, @a mx, k, t) = G(@a x, @a mx, t) and t is the
+       current time. */
+   virtual void Mult(const Vector &x, const Vector &mx,  Vector &y) const;
 
    /** @brief Solve the equation: @a k = f(@a x + @a dt @a k, t), for the
        unknown @a k at the current time t.

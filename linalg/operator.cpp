@@ -48,6 +48,11 @@ void Operator::InitTVectors(const Operator *Po, const Operator *Ri,
    }
 }
 
+void Operator::Mult(const Vector &x, const Vector &mx,  Vector &y) const
+{
+	mfem_error("Operator::Mult() (mixed version) is not overridden!");
+}
+
 void Operator::AddMult(const Vector &x, Vector &y, const double a) const
 {
    mfem::Vector z(y.Size());
@@ -293,6 +298,11 @@ void TimeDependentOperator::ImplicitMult(const Vector &, const Vector &,
 void TimeDependentOperator::Mult(const Vector &, Vector &) const
 {
    mfem_error("TimeDependentOperator::Mult() is not overridden!");
+}
+
+void TimeDependentOperator::Mult(const Vector &, const Vector &, Vector &) const
+{
+   mfem_error("TimeDependentOperator::Mult() (mixed version) is not overridden!");
 }
 
 void TimeDependentOperator::ImplicitSolve(const double, const Vector &,
