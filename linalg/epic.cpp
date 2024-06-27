@@ -76,9 +76,16 @@ int EPICSolver::Jacobian(N_Vector v, N_Vector Jv, realtype t, N_Vector y, N_Vect
    EPICSolver *self = static_cast<EPICSolver*>(user_data);
 
    // Compute J(t, y) v
+   // TODO: "Mult" needs to be defined outside. See how we define "Mult" in "f" that is used in "RHS"
    self->Jtv->Mult(mfem_v, mfem_Jv);
 
    return 0;
+}
+
+void EPICSolver::SetOperator(Operator &op)
+{
+	// set up the computation of Jtv (linear operator)
+	Jtv = &op;
 }
 
 void EPICSolver::Init(TimeDependentOperator &f)
@@ -111,6 +118,7 @@ void EPICSolver::Init(TimeDependentOperator &f)
 
 }
 
+// TODO: in the constructor, we can initialize "integrator" by nullptr. Note that it will be initialized later through the funciton "Init"
 EPI2::EPI2(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPI2::EPI2(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
 
@@ -127,6 +135,7 @@ void EPI2::Init(TimeDependentOperator &f)
 
 }
 
+// TODO: in the constructor, we can initialize "integrator" by nullptr. Note that it will be initialized later through the funciton "Init"
 EPIRK4::EPIRK4(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
 
@@ -159,7 +168,7 @@ void EPICSolver::Step(Vector &x, double &t, double &dt)
 
 void EPI2::Step(Vector &x, double &t, double &dt)
 {
-    EPICSolver::Step(x, t, dt);
+    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
     integrator->Integrate(dt, t, t+dt, 0, *temp, 1e-10, m);
     t += dt;
 }

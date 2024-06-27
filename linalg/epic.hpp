@@ -72,6 +72,12 @@ public:
     virtual void Init(TimeDependentOperator &f);
     virtual void Step(Vector &x, double &t, double &dt);
 
+    /// Set the linear Operator of the system and initialize Jtv. (Copied from "KINSOL")
+    /** @note If this method is called a second time with a different problem
+        size, then non-default KINSOL-specific options will be lost and will need
+        to be set again. */
+    virtual void SetOperator(Operator &op);
+
     virtual ~EPICSolver() {}
 };
 
