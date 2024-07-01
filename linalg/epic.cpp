@@ -76,7 +76,7 @@ int EPICSolver::Jacobian(N_Vector v, N_Vector Jv, realtype t, N_Vector y, N_Vect
    EPICSolver *self = static_cast<EPICSolver*>(user_data);
 
    // Compute J(t, y) v
-   // TODO: "Mult" needs to be defined outside. See how we define "Mult" in "f" that is used in "RHS"
+   // XXX: "Mult" is defined in the script. (i.e., LinearOperator in MHD.cpp)
    self->Jtv->Mult(mfem_v, mfem_Jv);
 
    return 0;
@@ -161,9 +161,9 @@ void EPICSolver::Step(Vector &x, double &t, double &dt)
    // XXX:GetGradient is assumed to be implemented through SetOperator(&op)
    // i.e., see ex10p.cpp in sundials examples. The implementation is carried in
    // ReducedSystemOperator::GetGradient(const Vector &k).
-   if (exactJacobian) {
-	   Jtv = &(this->f->GetGradient(x));
-   }
+//   if (exactJacobian) {
+//	   Jtv = &(this->f->GetGradient(x));
+//   }
 }
 
 void EPI2::Step(Vector &x, double &t, double &dt)
