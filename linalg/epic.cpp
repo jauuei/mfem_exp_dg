@@ -68,10 +68,17 @@ int EPICSolver::RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data
 
 int EPICSolver::Jacobian(N_Vector v, N_Vector Jv, realtype t, N_Vector y, N_Vector fy, void *user_data, N_Vector tmp)
 {
-	// Similar to "GradientMult" in "KINSolver". See also how function "Jtv" is constructed in the examples of EPIK
-    // Get data from N_Vectors
+	//N_VPrint_Parallel(v);
+	//cout << endl;
+	//printf("end of print N_Vector\n");
+
+   // Similar to "GradientMult" in "KINSolver". See also how function "Jtv" is constructed in the examples of EPIK
+   // Get data from N_Vectors
    const SundialsNVector mfem_v(v);
    SundialsNVector mfem_Jv(Jv);
+
+   //mfem_v.Print(cout, 1);
+   //mfem_error("test in EPICSolver::Jacobian");
 
    EPICSolver *self = static_cast<EPICSolver*>(user_data);
 
@@ -155,7 +162,6 @@ void EPICSolver::Step(Vector &x, double &t, double &dt)
 {
    temp->MakeRef(x, 0, x.Size());
    MFEM_VERIFY(temp->Size() == x.Size(), "size mismatch");
-
    // Reinitialize CVODE memory if needed (TODO: needed if we use "sundials_mem")
 
    // XXX:GetGradient is assumed to be implemented through SetOperator(&op)
@@ -169,6 +175,7 @@ void EPICSolver::Step(Vector &x, double &t, double &dt)
 void EPI2::Step(Vector &x, double &t, double &dt)
 {
     EPICSolver::Step(x, t, dt); // update the linear operator at each time step
+    //Note: dt is substep size. Currently, it is set to be single sub-time step.
     integrator->Integrate(dt, t, t+dt, 0, *temp, 1e-10, m);
     t += dt;
 }
