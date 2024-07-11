@@ -25,6 +25,7 @@ EPICSolver::EPICSolver(bool _exactJacobian, EPICNumJacDelta _delta)
 
    m[0] = 10;
    m[1] = 10;
+   m_max= 100; // default max value is set to be 100;
 
    exactJacobian = _exactJacobian;
    Jtv = NULL;
@@ -38,6 +39,7 @@ EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, EPICNumJacDelta _del
 
    m[0] = 10;
    m[1] = 10;
+   m_max= 100; // default max value is set to be 100;
 
    // Allocate an empty parallel N_Vector
   temp = new SundialsNVector(_comm);
@@ -95,9 +97,18 @@ void EPICSolver::SetOperator(Operator &op)
 	Jtv = &op;
 }
 
-void EPICSolver::Init(TimeDependentOperator &f)
+void EPICSolver::Init(TimeDependentOperator &f, int* m_, int m_max_=0)
 {
     ODESolver::Init(f);
+
+    if (sizeof(m_)/sizeof(int)!=2)
+    	mfem_error("Incorrect size of the Krylov subspace.");
+
+    m[0] = m_[0];
+    m[1] = m_[1];
+
+    if (m_max_>0)
+    	m_max=m_max_; // reset the max size the Krylov subspace size
 	    
     long local_size = f.Height();
 #ifdef MFEM_USE_MPI
@@ -129,13 +140,14 @@ void EPICSolver::Init(TimeDependentOperator &f)
 EPI2::EPI2(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPI2::EPI2(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
 
-void EPI2::Init(TimeDependentOperator &f)
+void EPI2::Init(TimeDependentOperator &f, int *m_, int m_max_=0)
 {
-    EPICSolver::Init(f);
+    EPICSolver::Init(f, m_, m_max_);
     long local_size = f.Height();
     long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
-       integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
+       //integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
+       integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size);
     } else {
        integrator = new Epi2_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
     }
@@ -148,10 +160,15 @@ EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICS
 
 void EPIRK4::Init(TimeDependentOperator &f)
 {
-    EPICSolver::Init(f);
+	// TODO: need to fix Initialization
+	int m_[]={10,10};
+	int m_max_=100;
+    EPICSolver::Init(f,&m_[0],m_max_);
     long local_size = f.Height();
     long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
+       // Here maxKrylovIters is set to be 100.
+       // The minimum is always set to be 10. See M_min in Integrators/AdaptiveKrylov/Kiops.cpp in the EPIC package.
        integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
     } else {
        integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);

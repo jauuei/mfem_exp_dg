@@ -47,6 +47,7 @@ protected:
     Operator* Jtv;
     SundialsNVector* temp;
     int m[2];
+    int m_max;
 
     bool exactJacobian;
 
@@ -69,7 +70,7 @@ public:
     static int RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data);
     static int Jacobian(N_Vector v, N_Vector Jv, realtype t,
                          N_Vector y, N_Vector fy, void *user_data, N_Vector tmp);
-    virtual void Init(TimeDependentOperator &f);
+    virtual void Init(TimeDependentOperator &f, int* m_, int m_max_);
     virtual void Step(Vector &x, double &t, double &dt);
 
     /// Set the linear Operator of the system and initialize Jtv. (Copied from "KINSOL")
@@ -92,7 +93,7 @@ public:
     EPI2(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
-    virtual void Init(TimeDependentOperator &f);
+    virtual void Init(TimeDependentOperator &f, int* m_, int m_max_);
     virtual void Step(Vector &x, double &t, double &dt);
 
     virtual ~EPI2();
