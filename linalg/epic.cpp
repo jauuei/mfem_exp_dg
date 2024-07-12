@@ -25,7 +25,10 @@ EPICSolver::EPICSolver(bool _exactJacobian, EPICNumJacDelta _delta)
 
    m[0] = 10;
    m[1] = 10;
+   m_tmp[0]=10;
+   m_tmp[1]=10;
    m_max= 100; // default max value is set to be 100;
+   kry_tol=1e-10;
 
    exactJacobian = _exactJacobian;
    Jtv = NULL;
@@ -39,7 +42,10 @@ EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, EPICNumJacDelta _del
 
    m[0] = 10;
    m[1] = 10;
+   m_tmp[0]=10;
+   m_tmp[1]=10;
    m_max= 100; // default max value is set to be 100;
+   kry_tol=1e-10;
 
    // Allocate an empty parallel N_Vector
   temp = new SundialsNVector(_comm);
@@ -97,15 +103,18 @@ void EPICSolver::SetOperator(Operator &op)
 	Jtv = &op;
 }
 
-void EPICSolver::Init(TimeDependentOperator &f, int* m_, int m_max_=0)
+void EPICSolver::Init(TimeDependentOperator &f, int* m_, double kry_tol_=-1.0, int m_max_=0)
 {
     ODESolver::Init(f);
 
     if (sizeof(m_)/sizeof(int)!=2)
     	mfem_error("Incorrect size of the Krylov subspace.");
 
-    m[0] = m_[0];
-    m[1] = m_[1];
+    m_tmp[0] = m_[0];
+    m_tmp[1] = m_[1];
+
+    if (kry_tol_>0)
+    	kry_tol  = kry_tol_;
 
     if (m_max_>0)
     	m_max=m_max_; // reset the max size the Krylov subspace size
@@ -140,9 +149,9 @@ void EPICSolver::Init(TimeDependentOperator &f, int* m_, int m_max_=0)
 EPI2::EPI2(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPI2::EPI2(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
 
-void EPI2::Init(TimeDependentOperator &f, int *m_, int m_max_=0)
+void EPI2::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
 {
-    EPICSolver::Init(f, m_, m_max_);
+    EPICSolver::Init(f, m_, kry_tol_, m_max_);
     long local_size = f.Height();
     long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
@@ -163,7 +172,8 @@ void EPIRK4::Init(TimeDependentOperator &f)
 	// TODO: need to fix Initialization
 	int m_[]={10,10};
 	int m_max_=100;
-    EPICSolver::Init(f,&m_[0],m_max_);
+	double kry_tol_=-1;
+    EPICSolver::Init(f,&m_[0], kry_tol_,m_max_);
     long local_size = f.Height();
     long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
@@ -193,14 +203,17 @@ void EPI2::Step(Vector &x, double &t, double &dt)
 {
     EPICSolver::Step(x, t, dt); // update the linear operator at each time step
     //Note: dt is substep size. Currently, it is set to be single sub-time step.
-    integrator->Integrate(dt, t, t+dt, 0, *temp, 1e-10, m);
+    //Note: m will be modified inside Integrate();
+    m[0] = m_tmp[0];
+    m[1] = m_tmp[1];
+    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
     t += dt;
 }
 
 void EPIRK4::Step(Vector &x, double &t, double &dt)
 {
     EPICSolver::Step(x, t, dt);
-    integrator->Integrate(dt, t, t+dt, 0, *temp, 1e-10, m);
+    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
     t += dt;
 }
 
