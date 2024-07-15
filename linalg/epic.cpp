@@ -163,6 +163,24 @@ void EPI2::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_m
 
 }
 
+
+EPI2_debug::EPI2_debug(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+EPI2_debug::EPI2_debug(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
+
+void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
+{
+    EPICSolver::Init(f, m_, kry_tol_, m_max_);
+    long local_size = f.Height();
+    long vec_size=(saved_global_size==0?local_size:saved_global_size);
+    if (exactJacobian) {
+       //integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
+       integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size);
+    } else {
+       integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
+    }
+
+}
+
 // TODO: in the constructor, we can initialize "integrator" by nullptr. Note that it will be initialized later through the funciton "Init"
 EPIRK4::EPIRK4(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
@@ -210,6 +228,17 @@ void EPI2::Step(Vector &x, double &t, double &dt)
     t += dt;
 }
 
+void EPI2_debug::Step(Vector &x, double &t, double &dt)
+{
+    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
+    //Note: dt is substep size. Currently, it is set to be single sub-time step.
+    //Note: m will be modified inside Integrate();
+    m[0] = m_tmp[0];
+    m[1] = m_tmp[1];
+    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
+    t += dt;
+}
+
 void EPIRK4::Step(Vector &x, double &t, double &dt)
 {
     EPICSolver::Step(x, t, dt);
@@ -218,6 +247,13 @@ void EPIRK4::Step(Vector &x, double &t, double &dt)
 }
 
 EPI2::~EPI2()
+{
+	delete temp;
+	delete Jtv;
+    delete integrator;
+}
+
+EPI2_debug::~EPI2_debug()
 {
 	delete temp;
 	delete Jtv;

@@ -100,6 +100,24 @@ public:
     virtual ~EPI2();
 };
 
+// This is used to print out information within the EPIC library.
+class EPI2_debug : public EPICSolver
+{
+protected:
+    Epi2_KIOPS_debug* integrator;
+public:
+    EPI2_debug(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+
+#ifdef MFEM_USE_MPI
+    EPI2_debug(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+#endif
+
+    virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
+    virtual void Step(Vector &x, double &t, double &dt);
+
+    virtual ~EPI2_debug();
+};
+
 class EPIRK4 : public EPICSolver
 {
 protected:
