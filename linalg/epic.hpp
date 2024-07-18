@@ -51,6 +51,8 @@ protected:
     int m_tmp[2];
     double kry_tol;
     bool exactJacobian;
+    int myProc;
+    bool printinfo;
 
 #ifdef MFEM_USE_MPI
     bool Parallel() const
@@ -65,7 +67,7 @@ public:
     EPICSolver(bool exactJacobian, EPICNumJacDelta delta=&DefaultDelta);
 
 #ifdef MFEM_USE_MPI
-    EPICSolver(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta=&DefaultDelta);
+    EPICSolver(MPI_Comm comm, bool exactJacobian, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
     static int RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data);
@@ -109,7 +111,7 @@ public:
     EPI2_debug(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
 
 #ifdef MFEM_USE_MPI
-    EPI2_debug(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+    EPI2_debug(MPI_Comm comm, bool exactJacobian=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
     virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);

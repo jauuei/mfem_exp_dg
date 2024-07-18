@@ -33,10 +33,12 @@ EPICSolver::EPICSolver(bool _exactJacobian, EPICNumJacDelta _delta)
    exactJacobian = _exactJacobian;
    Jtv = NULL;
    Delta = _delta;
+   myProc= 0; // single process;
+   printinfo=false;
 }
 
 #ifdef MFEM_USE_MPI
-EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, EPICNumJacDelta _delta)
+EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, bool printinfo_/*=false*/, EPICNumJacDelta _delta/*=&DefaultDelta*/)
 {
    saved_global_size = 0;
 
@@ -53,6 +55,8 @@ EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, EPICNumJacDelta _del
   exactJacobian = _exactJacobian;
   Jtv = NULL;
   Delta = _delta;
+  MPI_Comm_rank(_comm, &myProc);
+  printinfo = printinfo_;
 }
 #endif
 
@@ -165,7 +169,7 @@ void EPI2::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_m
 
 
 EPI2_debug::EPI2_debug(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
-EPI2_debug::EPI2_debug(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
+EPI2_debug::EPI2_debug(MPI_Comm comm, bool exactJacobian, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, printinfo_, delta) {}
 
 void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
 {
@@ -174,7 +178,7 @@ void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, i
     long vec_size=(saved_global_size==0?local_size:saved_global_size);
     if (exactJacobian) {
        //integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
-       integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size);
+       integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size, myProc, printinfo);
     } else {
        integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
     }
