@@ -120,6 +120,41 @@ public:
     virtual ~EPI2_debug();
 };
 
+
+class EPIRB32 : public EPICSolver
+{
+protected:
+	EpiRB32_KIOPS* integrator;
+public:
+	EPIRB32(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+
+#ifdef MFEM_USE_MPI
+	EPIRB32(MPI_Comm comm, bool exactJacobian=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+#endif
+
+    virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
+    virtual void Step(Vector &x, double &t, double &dt);
+
+    virtual ~EPIRB32();
+};
+
+class EPIRB43 : public EPICSolver
+{
+protected:
+	EpiRB43_KIOPS* integrator;
+public:
+	EPIRB43(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+
+#ifdef MFEM_USE_MPI
+	EPIRB43(MPI_Comm comm, bool exactJacobian=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+#endif
+
+    virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
+    virtual void Step(Vector &x, double &t, double &dt);
+
+    virtual ~EPIRB43();
+};
+
 class EPIRK4 : public EPICSolver
 {
 protected:

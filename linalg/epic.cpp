@@ -185,6 +185,41 @@ void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, i
 
 }
 
+
+EPIRB32::EPIRB32(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+EPIRB32::EPIRB32(MPI_Comm comm, bool exactJacobian, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, printinfo_, delta) {}
+
+void EPIRB32::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
+{
+    EPICSolver::Init(f, m_, kry_tol_, m_max_);
+    long local_size = f.Height();
+    long vec_size=(saved_global_size==0?local_size:saved_global_size);
+    if (exactJacobian) {
+       integrator = new EpiRB32_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size, myProc, printinfo);
+    } else {
+    	mfem_error("EPIRB32 require the exact Jacobian.\n");
+       //integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
+    }
+
+}
+
+EPIRB43::EPIRB43(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+EPIRB43::EPIRB43(MPI_Comm comm, bool exactJacobian, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, printinfo_, delta) {}
+
+void EPIRB43::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
+{
+    EPICSolver::Init(f, m_, kry_tol_, m_max_);
+    long local_size = f.Height();
+    long vec_size=(saved_global_size==0?local_size:saved_global_size);
+    if (exactJacobian) {
+       integrator = new EpiRB43_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size, myProc, printinfo);
+    } else {
+    	mfem_error("EPIRB43 require the exact Jacobian.\n");
+       //integrator = new Epi2_KIOPS_debug(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
+    }
+
+}
+
 // TODO: in the constructor, we can initialize "integrator" by nullptr. Note that it will be initialized later through the funciton "Init"
 EPIRK4::EPIRK4(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
@@ -243,6 +278,28 @@ void EPI2_debug::Step(Vector &x, double &t, double &dt)
     t += dt;
 }
 
+void EPIRB32::Step(Vector &x, double &t, double &dt)
+{
+    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
+    //Note: dt is substep size. Currently, it is set to be single sub-time step.
+    //Note: m will be modified inside Integrate();
+    m[0] = m_tmp[0];
+    m[1] = m_tmp[1];
+    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
+    t += dt;
+}
+
+void EPIRB43::Step(Vector &x, double &t, double &dt)
+{
+    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
+    //Note: dt is substep size. Currently, it is set to be single sub-time step.
+    //Note: m will be modified inside Integrate();
+    m[0] = m_tmp[0];
+    m[1] = m_tmp[1];
+    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
+    t += dt;
+}
+
 void EPIRK4::Step(Vector &x, double &t, double &dt)
 {
     EPICSolver::Step(x, t, dt);
@@ -258,6 +315,20 @@ EPI2::~EPI2()
 }
 
 EPI2_debug::~EPI2_debug()
+{
+	delete temp;
+	delete Jtv;
+    delete integrator;
+}
+
+EPIRB32::~EPIRB32()
+{
+	delete temp;
+	delete Jtv;
+    delete integrator;
+}
+
+EPIRB43::~EPIRB43()
 {
 	delete temp;
 	delete Jtv;
