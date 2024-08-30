@@ -53,6 +53,8 @@ protected:
     bool exactJacobian;
     int myProc;
     bool printinfo;
+    bool useKiops;
+    int  numBand;
 
 #ifdef MFEM_USE_MPI
     bool Parallel() const
@@ -67,7 +69,7 @@ public:
     EPICSolver(bool exactJacobian, EPICNumJacDelta delta=&DefaultDelta);
 
 #ifdef MFEM_USE_MPI
-    EPICSolver(MPI_Comm comm, bool exactJacobian, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+    EPICSolver(MPI_Comm comm, bool exactJacobian, int numBand_=0, bool useKiops_=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
     static int RHS(realtype t, const N_Vector y, N_Vector ydot, void *user_data);
@@ -85,22 +87,22 @@ public:
     virtual ~EPICSolver() {}
 };
 
-class EPI2 : public EPICSolver
-{
-protected:
-    Epi2_KIOPS* integrator;
-public:
-    EPI2(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
-
-#ifdef MFEM_USE_MPI
-    EPI2(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
-#endif
-
-    virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
-    virtual void Step(Vector &x, double &t, double &dt);
-
-    virtual ~EPI2();
-};
+//class EPI2 : public EPICSolver
+//{
+//protected:
+//    Epi2_KIOPS* integrator;
+//public:
+//    EPI2(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+//
+//#ifdef MFEM_USE_MPI
+//    EPI2(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+//#endif
+//
+//    virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
+//    virtual void Step(Vector &x, double &t, double &dt);
+//
+//    virtual ~EPI2();
+//};
 
 // This is used to print out information within the EPIC library.
 class EPI2_debug : public EPICSolver
@@ -111,7 +113,7 @@ public:
     EPI2_debug(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
 
 #ifdef MFEM_USE_MPI
-    EPI2_debug(MPI_Comm comm, bool exactJacobian=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+    EPI2_debug(MPI_Comm comm, bool exactJacobian=true, int numBand_=0, bool useKiops_=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
     virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
@@ -129,7 +131,7 @@ public:
 	EPIRB32(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
 
 #ifdef MFEM_USE_MPI
-	EPIRB32(MPI_Comm comm, bool exactJacobian=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+	EPIRB32(MPI_Comm comm, bool exactJacobian=true,  int numBand_=0, bool useKiops_=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
     virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
@@ -146,7 +148,7 @@ public:
 	EPIRB43(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
 
 #ifdef MFEM_USE_MPI
-	EPIRB43(MPI_Comm comm, bool exactJacobian=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+	EPIRB43(MPI_Comm comm, bool exactJacobian=true,  int numBand_=0, bool useKiops_=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
 #endif
 
     virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
@@ -155,22 +157,22 @@ public:
     virtual ~EPIRB43();
 };
 
-class EPIRK4 : public EPICSolver
-{
-protected:
-    EpiRK4SC_KIOPS* integrator;
-public:
-    EPIRK4(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
-
-#ifdef MFEM_USE_MPI
-    EPIRK4(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
-#endif
-
-    virtual void Init(TimeDependentOperator &f);
-    virtual void Step(Vector &x, double &t, double &dt);
-
-    virtual ~EPIRK4();
-};
+//class EPIRK4 : public EPICSolver
+//{
+//protected:
+//    EpiRK4SC_KIOPS* integrator;
+//public:
+//    EPIRK4(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+//
+//#ifdef MFEM_USE_MPI
+//    EPIRK4(MPI_Comm comm, bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+//#endif
+//
+//    virtual void Init(TimeDependentOperator &f);
+//    virtual void Step(Vector &x, double &t, double &dt);
+//
+//    virtual ~EPIRK4();
+//};
 
 } // namespace mfem
 

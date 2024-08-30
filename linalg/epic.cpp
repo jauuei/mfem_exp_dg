@@ -35,10 +35,12 @@ EPICSolver::EPICSolver(bool _exactJacobian, EPICNumJacDelta _delta)
    Delta = _delta;
    myProc= 0; // single process;
    printinfo=false;
+   useKiops =true;
+   numBand  =0;
 }
 
 #ifdef MFEM_USE_MPI
-EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, bool printinfo_/*=false*/, EPICNumJacDelta _delta/*=&DefaultDelta*/)
+EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, int numBand_/*=0*/, bool useKiops_/*=true*/, bool printinfo_/*=false*/, EPICNumJacDelta _delta/*=&DefaultDelta*/)
 {
    saved_global_size = 0;
 
@@ -57,6 +59,8 @@ EPICSolver::EPICSolver(MPI_Comm _comm, bool _exactJacobian, bool printinfo_/*=fa
   Delta = _delta;
   MPI_Comm_rank(_comm, &myProc);
   printinfo = printinfo_;
+  useKiops  = useKiops_;
+  numBand   = numBand_;
 }
 #endif
 
@@ -150,26 +154,26 @@ void EPICSolver::Init(TimeDependentOperator &f, int* m_, double kry_tol_=-1.0, i
 }
 
 // TODO: in the constructor, we can initialize "integrator" by nullptr. Note that it will be initialized later through the funciton "Init"
-EPI2::EPI2(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
-EPI2::EPI2(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
-
-void EPI2::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
-{
-    EPICSolver::Init(f, m_, kry_tol_, m_max_);
-    long local_size = f.Height();
-    long vec_size=(saved_global_size==0?local_size:saved_global_size);
-    if (exactJacobian) {
-       //integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
-       integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size);
-    } else {
-       integrator = new Epi2_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
-    }
-
-}
+//EPI2::EPI2(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+//EPI2::EPI2(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
+//
+//void EPI2::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
+//{
+//    EPICSolver::Init(f, m_, kry_tol_, m_max_);
+//    long local_size = f.Height();
+//    long vec_size=(saved_global_size==0?local_size:saved_global_size);
+//    if (exactJacobian) {
+//       //integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
+//       integrator = new Epi2_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size);
+//    } else {
+//       integrator = new Epi2_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
+//    }
+//
+//}
 
 
 EPI2_debug::EPI2_debug(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
-EPI2_debug::EPI2_debug(MPI_Comm comm, bool exactJacobian, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, printinfo_, delta) {}
+EPI2_debug::EPI2_debug(MPI_Comm comm, bool exactJacobian, int numBand_, bool useKiops_, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, numBand_, useKiops_, printinfo_, delta) {}
 
 void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
 {
@@ -187,7 +191,7 @@ void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, i
 
 
 EPIRB32::EPIRB32(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
-EPIRB32::EPIRB32(MPI_Comm comm, bool exactJacobian, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, printinfo_, delta) {}
+EPIRB32::EPIRB32(MPI_Comm comm, bool exactJacobian,  int numBand_, bool useKiops_, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, numBand_, useKiops_, printinfo_, delta) {}
 
 void EPIRB32::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
 {
@@ -204,7 +208,7 @@ void EPIRB32::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int 
 }
 
 EPIRB43::EPIRB43(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
-EPIRB43::EPIRB43(MPI_Comm comm, bool exactJacobian, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, printinfo_, delta) {}
+EPIRB43::EPIRB43(MPI_Comm comm, bool exactJacobian,  int numBand_, bool useKiops_, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, numBand_, useKiops_, printinfo_, delta) {}
 
 void EPIRB43::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
 {
@@ -221,26 +225,26 @@ void EPIRB43::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int 
 }
 
 // TODO: in the constructor, we can initialize "integrator" by nullptr. Note that it will be initialized later through the funciton "Init"
-EPIRK4::EPIRK4(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
-EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
-
-void EPIRK4::Init(TimeDependentOperator &f)
-{
-	// TODO: need to fix Initialization
-	int m_[]={10,10};
-	int m_max_=100;
-	double kry_tol_=-1;
-    EPICSolver::Init(f,&m_[0], kry_tol_,m_max_);
-    long local_size = f.Height();
-    long vec_size=(saved_global_size==0?local_size:saved_global_size);
-    if (exactJacobian) {
-       // Here maxKrylovIters is set to be 100.
-       // The minimum is always set to be 10. See M_min in Integrators/AdaptiveKrylov/Kiops.cpp in the EPIC package.
-       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
-    } else {
-       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
-    }
-}
+//EPIRK4::EPIRK4(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+//EPIRK4::EPIRK4(MPI_Comm comm, bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, delta) {}
+//
+//void EPIRK4::Init(TimeDependentOperator &f)
+//{
+//	// TODO: need to fix Initialization
+//	int m_[]={10,10};
+//	int m_max_=100;
+//	double kry_tol_=-1;
+//    EPICSolver::Init(f,&m_[0], kry_tol_,m_max_);
+//    long local_size = f.Height();
+//    long vec_size=(saved_global_size==0?local_size:saved_global_size);
+//    if (exactJacobian) {
+//       // Here maxKrylovIters is set to be 100.
+//       // The minimum is always set to be 10. See M_min in Integrators/AdaptiveKrylov/Kiops.cpp in the EPIC package.
+//       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, EPICSolver::Jacobian, this, 100, *temp ,vec_size);
+//    } else {
+//       integrator = new EpiRK4SC_KIOPS(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
+//    }
+//}
 
 void EPICSolver::Step(Vector &x, double &t, double &dt)
 {
@@ -256,16 +260,16 @@ void EPICSolver::Step(Vector &x, double &t, double &dt)
 //   }
 }
 
-void EPI2::Step(Vector &x, double &t, double &dt)
-{
-    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
-    //Note: dt is substep size. Currently, it is set to be single sub-time step.
-    //Note: m will be modified inside Integrate();
-    m[0] = m_tmp[0];
-    m[1] = m_tmp[1];
-    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
-    t += dt;
-}
+//void EPI2::Step(Vector &x, double &t, double &dt)
+//{
+//    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
+//    //Note: dt is substep size. Currently, it is set to be single sub-time step.
+//    //Note: m will be modified inside Integrate();
+//    m[0] = m_tmp[0];
+//    m[1] = m_tmp[1];
+//    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
+//    t += dt;
+//}
 
 void EPI2_debug::Step(Vector &x, double &t, double &dt)
 {
@@ -274,7 +278,7 @@ void EPI2_debug::Step(Vector &x, double &t, double &dt)
     //Note: m will be modified inside Integrate();
     m[0] = m_tmp[0];
     m[1] = m_tmp[1];
-    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
+    integrator->Integrate(dt, t, t+dt, numBand, *temp, kry_tol, m, useKiops);
     t += dt;
 }
 
@@ -300,19 +304,19 @@ void EPIRB43::Step(Vector &x, double &t, double &dt)
     t += dt;
 }
 
-void EPIRK4::Step(Vector &x, double &t, double &dt)
-{
-    EPICSolver::Step(x, t, dt);
-    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
-    t += dt;
-}
+//void EPIRK4::Step(Vector &x, double &t, double &dt)
+//{
+//    EPICSolver::Step(x, t, dt);
+//    integrator->Integrate(dt, t, t+dt, 0, *temp, kry_tol, m);
+//    t += dt;
+//}
 
-EPI2::~EPI2()
-{
-	delete temp;
-	delete Jtv;
-    delete integrator;
-}
+//EPI2::~EPI2()
+//{
+//	delete temp;
+//	delete Jtv;
+//    delete integrator;
+//}
 
 EPI2_debug::~EPI2_debug()
 {
@@ -335,12 +339,12 @@ EPIRB43::~EPIRB43()
     delete integrator;
 }
 
-EPIRK4::~EPIRK4()
-{
-	delete temp;
-	delete Jtv;
-    delete integrator;
-}
+//EPIRK4::~EPIRK4()
+//{
+//	delete temp;
+//	delete Jtv;
+//    delete integrator;
+//}
 
 }
 
