@@ -189,6 +189,22 @@ void EPI2_debug::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, i
 
 }
 
+PCEXP::PCEXP(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
+PCEXP::PCEXP(MPI_Comm comm, bool exactJacobian, int numBand_, bool useKiops_, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, numBand_, useKiops_, printinfo_, delta) {}
+
+void PCEXP::Init(TimeDependentOperator &f, int *m_, double kry_tol_=-1.0, int m_max_=0)
+{
+    EPICSolver::Init(f, m_, kry_tol_, m_max_);
+    long local_size = f.Height();
+    long vec_size=(saved_global_size==0?local_size:saved_global_size);
+    if (exactJacobian) {
+       integrator = new PCEXP_KIOPS_debug(EPICSolver::RHS, EPICSolver::Jacobian, this, m_max, *temp ,vec_size, myProc, printinfo);
+    } else {
+       integrator = new PCEXP_KIOPS_debug(EPICSolver::RHS, Delta, this, 100, *temp ,vec_size);
+    }
+
+}
+
 
 EPIRB32::EPIRB32(bool exactJacobian, EPICNumJacDelta delta) : EPICSolver(exactJacobian, delta) {}
 EPIRB32::EPIRB32(MPI_Comm comm, bool exactJacobian,  int numBand_, bool useKiops_, bool printinfo_, EPICNumJacDelta delta) : EPICSolver(comm, exactJacobian, numBand_, useKiops_, printinfo_, delta) {}
@@ -282,6 +298,17 @@ void EPI2_debug::Step(Vector &x, double &t, double &dt)
     t += dt;
 }
 
+void PCEXP::Step(Vector &x, double &t, double &dt)
+{
+    EPICSolver::Step(x, t, dt); // update the linear operator at each time step
+    //Note: dt is substep size. Currently, it is set to be single sub-time step.
+    //Note: m will be modified inside Integrate();
+    m[0] = m_tmp[0];
+    m[1] = m_tmp[1];
+    integrator->Integrate(dt, t, t+dt, numBand, *temp, kry_tol, m, useKiops);
+    t += dt;
+}
+
 void EPIRB32::Step(Vector &x, double &t, double &dt)
 {
     EPICSolver::Step(x, t, dt); // update the linear operator at each time step
@@ -319,6 +346,13 @@ void EPIRB43::Step(Vector &x, double &t, double &dt)
 //}
 
 EPI2_debug::~EPI2_debug()
+{
+	delete temp;
+	delete Jtv;
+    delete integrator;
+}
+
+PCEXP::~PCEXP()
 {
 	delete temp;
 	delete Jtv;

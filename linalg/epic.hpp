@@ -122,6 +122,23 @@ public:
     virtual ~EPI2_debug();
 };
 
+class PCEXP : public EPICSolver
+{
+protected:
+	PCEXP_KIOPS_debug* integrator;
+public:
+	PCEXP(bool exactJacobian=true, EPICNumJacDelta delta=&DefaultDelta);
+
+#ifdef MFEM_USE_MPI
+	PCEXP(MPI_Comm comm, bool exactJacobian=true, int numBand_=0, bool useKiops_=true, bool printinfo_=false, EPICNumJacDelta delta=&DefaultDelta);
+#endif
+
+    virtual void Init(TimeDependentOperator &f, int* m_, double kry_tol_, int m_max_);
+    virtual void Step(Vector &x, double &t, double &dt);
+
+    virtual ~PCEXP();
+};
+
 
 class EPIRB32 : public EPICSolver
 {
