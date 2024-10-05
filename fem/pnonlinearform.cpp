@@ -25,6 +25,7 @@ ParNonlinearForm::ParNonlinearForm(ParFiniteElementSpace *pf)
    X.MakeRef(pf, NULL);
    Y.MakeRef(pf, NULL);
    mX=0.0; // will not be used
+   X_old=0.0; // will not be used
    MFEM_VERIFY(!Serial(), "internal MFEM error");
 }
 
@@ -34,6 +35,17 @@ ParNonlinearForm::ParNonlinearForm(ParFiniteElementSpace *pf, ParFiniteElementSp
    X.MakeRef(pf, NULL);
    Y.MakeRef(pf, NULL);
    mX.MakeRef(pmf, NULL);
+   X_old.MakeRef(pf, NULL);
+   MFEM_VERIFY(!Serial(), "internal MFEM error");
+}
+
+ParNonlinearForm::ParNonlinearForm(ParFiniteElementSpace *pf, ParFiniteElementSpace *pmf, ParFiniteElementSpace *pf_old)
+   : NonlinearForm(pf,pmf,pf_old), pGrad(Operator::Hypre_ParCSR)
+{
+   X.MakeRef(pf, NULL);
+   Y.MakeRef(pf, NULL);
+   mX.MakeRef(pmf, NULL);
+   X_old.MakeRef(pf_old, NULL);
    MFEM_VERIFY(!Serial(), "internal MFEM error");
 }
 
@@ -154,6 +166,82 @@ void ParNonlinearForm::Mult(const Vector &x, const Vector &mx, Vector &y) const
          for (int k = 0; k < fnfi.Size(); k++)
          {
             fnfi[k]->AssembleFaceVector(*fe1, *fe2, *tr, el_x, el_mx, el_y);
+            aux2.AddElementVector(vdofs1, el_y.GetData());
+         }
+      }
+   }
+
+   P->MultTranspose(aux2, y);
+
+   const int N = ess_tdof_list.Size();
+   const auto idx = ess_tdof_list.Read();
+   auto Y_RW = y.ReadWrite();
+   mfem::forall(N, [=] MFEM_HOST_DEVICE (int i) { Y_RW[idx[i]] = 0.0; });
+}
+
+void ParNonlinearForm::Mult(const Vector &x, const Vector &mx, const Vector &xold, Vector &y) const
+{
+   NonlinearForm::Mult(x, mx, xold, y); // x --(P)--> aux1 --(A_local)--> aux2
+
+   if (fnfi.Size())
+   {
+      MFEM_VERIFY(!NonlinearForm::ext, "Not implemented (extensions + faces");
+      // Terms over shared interior faces in parallel.
+      ParFiniteElementSpace *pfes = ParFESpace();
+      ParFiniteElementSpace *pmfes = ParMFESpace();
+      ParFiniteElementSpace *pfes_old = ParFESpace_old();
+
+      ParMesh *pmesh = pfes->GetParMesh();
+      FaceElementTransformations *tr;
+      const FiniteElement *fe1, *fe2;
+      Array<int> vdofs1, vdofs2, mvdofs1, mvdofs2, vdofs1_old, vdofs2_old;
+      Vector el_x, el_y, el_mx, el_xold;
+
+      aux1.HostReadWrite();
+      X.MakeRef(aux1, 0); // aux1 contains P.x
+      X.ExchangeFaceNbrData();
+
+      maux.HostReadWrite();
+      mX.MakeRef(maux, 0); // maux contains mP.mx
+      mX.ExchangeFaceNbrData();
+
+      aux_old.HostReadWrite();
+      X_old.MakeRef(aux_old, 0); // aux_old contains P_old.xold
+      X_old.ExchangeFaceNbrData();
+
+      const int n_shared_faces = pmesh->GetNSharedFaces();
+      for (int i = 0; i < n_shared_faces; i++)
+      {
+         tr = pmesh->GetSharedFaceTransformations(i, true);
+         int Elem2NbrNo = tr->Elem2No - pmesh->GetNE();
+
+         fe1 = pfes->GetFE(tr->Elem1No);
+         fe2 = pfes->GetFaceNbrFE(Elem2NbrNo);
+
+         pfes->GetElementVDofs(tr->Elem1No, vdofs1);
+         pfes->GetFaceNbrElementVDofs(Elem2NbrNo, vdofs2);
+
+         el_x.SetSize(vdofs1.Size() + vdofs2.Size());
+         X.GetSubVector(vdofs1, el_x.GetData());
+         X.FaceNbrData().GetSubVector(vdofs2, el_x.GetData() + vdofs1.Size());
+
+         pmfes->GetElementVDofs(tr->Elem1No, mvdofs1);
+         pmfes->GetFaceNbrElementVDofs(Elem2NbrNo, mvdofs2);
+
+         el_mx.SetSize(mvdofs1.Size() + mvdofs2.Size());
+         mX.GetSubVector(mvdofs1, el_mx.GetData());
+         mX.FaceNbrData().GetSubVector(mvdofs2, el_mx.GetData() + mvdofs1.Size());
+
+         pfes_old->GetElementVDofs(tr->Elem1No, vdofs1_old);
+         pfes_old->GetFaceNbrElementVDofs(Elem2NbrNo, vdofs2_old);
+
+         el_xold.SetSize(vdofs1_old.Size() + vdofs2_old.Size());
+         X_old.GetSubVector(vdofs1_old, el_xold.GetData());
+         X_old.FaceNbrData().GetSubVector(vdofs2_old, el_xold.GetData() + vdofs1_old.Size());
+
+         for (int k = 0; k < fnfi.Size(); k++)
+         {
+            fnfi[k]->AssembleFaceVector(*fe1, *fe2, *tr, el_x, el_mx, el_xold, el_y);
             aux2.AddElementVector(vdofs1, el_y.GetData());
          }
       }

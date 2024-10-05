@@ -94,6 +94,12 @@ public:
    //       a virtual function.
    virtual void Mult(const Vector &x, const Vector &mx,  Vector &y) const;
 
+   /// Operator application: `y=A(x, mx, x_old)`.
+   // Note: Given that all pure virtual function has to be implemented in the inherited class
+   //       (unless the inherited class is still a base class), the Mult here is claimed to be
+   //       a virtual function.
+   virtual void Mult(const Vector &x, const Vector &mx, const Vector &x_old, Vector &y) const;
+
    /** @brief Action of the transpose operator: `y=A^t(x)`. The default behavior
        in class Operator is to generate an error. */
    virtual void MultTranspose(const Vector &x, Vector &y) const

@@ -38,6 +38,11 @@ protected:
    /// Mixed FE space on which the form lives.
    FiniteElementSpace *mfes; // not owned
 
+   /// FE space on which the form lives. The old (previous solution) is defined on this space.
+   //  It is used in linear evaluation in exponential time integrators.
+   //  In practice, fes_old is actually equal to fes.
+   FiniteElementSpace *fes_old; // not owned
+
    /// Set of Domain Integrators to be assembled (added).
    Array<NonlinearFormIntegrator*> dnfi; // owned
 
@@ -59,12 +64,14 @@ protected:
    long sequence;
 
    /// Auxiliary Vector%s
-   mutable Vector aux1, aux2, maux;
+   mutable Vector aux1, aux2, maux, aux_old;
 
    /// Pointer to the prolongation matrix of fes, may be NULL.
    const Operator *P; // not owned
    /// Pointer to the prolongation matrix of mfes, may be NULL.
    const Operator *mP; // not owned
+   /// Pointer to the prolongation matrix of fes_old, may be NULL.
+   const Operator *P_old; // not owned
    /// The result of dynamic-casting P to SparseMatrix pointer.
    const SparseMatrix *cP; // not owned
 
@@ -73,6 +80,9 @@ protected:
 
    // The function same as Prolongate but acts on the vector defined on the mfes.
    const Vector &mProlongate(const Vector &x) const;
+
+   // The function same as Prolongate but acts on the vector defined on the fes_old.
+   const Vector &Prolongate_old(const Vector &x) const;
 public:
    /// Construct a NonlinearForm on the given FiniteElementSpace, @a f.
    /** As an Operator, the NonlinearForm has input and output size equal to the
@@ -81,7 +91,7 @@ public:
       : Operator(f->GetTrueVSize()), assembly(AssemblyLevel::LEGACY),
         ext(NULL), fes(f), Grad(NULL), cGrad(NULL),
         sequence(f->GetSequence()), P(f->GetProlongationMatrix()),
-        cP(dynamic_cast<const SparseMatrix*>(P)), mfes(nullptr), mP(nullptr)
+        cP(dynamic_cast<const SparseMatrix*>(P)), mfes(nullptr), mP(nullptr), fes_old(nullptr), P_old(nullptr)
    { }
 
    /// Construct a (mixed) NonlinearForm on the given FiniteElementSpace, @a f and @a mf.
@@ -91,7 +101,17 @@ public:
       : Operator(f->GetTrueVSize()), assembly(AssemblyLevel::LEGACY),
         ext(NULL), fes(f), Grad(NULL), cGrad(NULL),
         sequence(f->GetSequence()), P(f->GetProlongationMatrix()),
-        cP(dynamic_cast<const SparseMatrix*>(P)), mfes(mf), mP(mf->GetProlongationMatrix())
+        cP(dynamic_cast<const SparseMatrix*>(P)), mfes(mf), mP(mf->GetProlongationMatrix()), fes_old(nullptr), P_old(nullptr)
+   { }
+
+   /// Construct a (mixed) NonlinearForm on the given FiniteElementSpace, @a f, @a mf and @a f_old.
+   /** As an Operator, the NonlinearForm has input and output size equal to the
+       number of true degrees of freedom, i.e. f->GetTrueVSize(). */
+   NonlinearForm(FiniteElementSpace *f, FiniteElementSpace *mf, FiniteElementSpace *f_old)
+      : Operator(f->GetTrueVSize()), assembly(AssemblyLevel::LEGACY),
+        ext(NULL), fes(f), Grad(NULL), cGrad(NULL),
+        sequence(f->GetSequence()), P(f->GetProlongationMatrix()),
+        cP(dynamic_cast<const SparseMatrix*>(P)), mfes(mf), mP(mf->GetProlongationMatrix()), fes_old(f_old), P_old(f_old->GetProlongationMatrix())
    { }
 
    /// Set the desired assembly level. The default is AssemblyLevel::LEGACY.
@@ -207,6 +227,22 @@ public:
        is typically used for scenario where a mixed finite element space is applied.
        (i.e., both @a x and @a mx could contribute to computation of @a y) */
    virtual void Mult(const Vector &x, const Vector &mx,  Vector &y) const;
+
+   /// Evaluate the action of the NonlinearForm.
+   /** The input essential dofs in @a x will, generally, be non-zero. However,
+       the output essential dofs in @a y will always be set to zero.
+
+       Both the input and the output vectors, @a x and @a y, must be true-dof
+       vectors, i.e. their size must be fes->GetTrueVSize().
+
+       The input @a mx should follow the same rule applied to @a x. The function
+       is typically used for scenario where a mixed finite element space is applied.
+       (i.e., both @a x and @a mx could contribute to computation of @a y)
+
+       The input @ x_old also follow the same rule. This function is used in the linear
+       evaluation in the exponential time integrators.
+        */
+   virtual void Mult(const Vector &x, const Vector &mx, const Vector &x_old,  Vector &y) const;
 
    /** @brief Compute the gradient Operator of the NonlinearForm corresponding
        to the state @a x. */

@@ -26,18 +26,22 @@ namespace mfem
 class ParNonlinearForm : public NonlinearForm
 {
 protected:
-   mutable ParGridFunction X, Y, mX;
+   mutable ParGridFunction X, Y, mX, X_old;
    mutable OperatorHandle pGrad;
 
 public:
    ParNonlinearForm(ParFiniteElementSpace *pf);
    ParNonlinearForm(ParFiniteElementSpace *pf, ParFiniteElementSpace *pmf);
+   ParNonlinearForm(ParFiniteElementSpace *pf, ParFiniteElementSpace *pmf, ParFiniteElementSpace *pf_old);
 
    ParFiniteElementSpace *ParFESpace() const
    { return (ParFiniteElementSpace *)fes; }
 
    ParFiniteElementSpace *ParMFESpace() const
    { return (ParFiniteElementSpace *)mfes; }
+
+   ParFiniteElementSpace *ParFESpace_old() const
+   { return (ParFiniteElementSpace *)fes_old; }
 
    /// Compute the energy corresponding to the state @a x.
    /** In general, @a x may have non-homogeneous essential boundary values.
@@ -56,6 +60,8 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
 
    virtual void Mult(const Vector &x, const Vector &mx, Vector &y) const;
+
+   virtual void Mult(const Vector &x, const Vector &mx, const Vector &x_old, Vector &y) const;
 
    /// Return the local gradient matrix for the given true-dof vector x.
    /** The returned matrix does NOT have any boundary conditions imposed. */
