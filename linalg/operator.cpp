@@ -58,6 +58,11 @@ void Operator::Mult(const Vector &x, const Vector &mx, const Vector &x_old, Vect
 	mfem_error("Operator::Mult() (mixed version including old states) is not overridden!");
 }
 
+void Operator::Mult(const Vector &x, const Vector &mx, const Vector &x_old, const Vector &x_av, Vector &y) const
+{
+	mfem_error("Operator::Mult() (mixed version including old states and artificial viscosity/resistivity) is not overridden!");
+}
+
 void Operator::AddMult(const Vector &x, Vector &y, const double a) const
 {
    mfem::Vector z(y.Size());

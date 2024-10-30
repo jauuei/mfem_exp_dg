@@ -104,6 +104,14 @@ void NonlinearFormIntegrator::AssembleFaceVector(
               "(mixed version including old states) is not overloaded!");
 }
 
+void NonlinearFormIntegrator::AssembleFaceVector(
+   const FiniteElement &el1, const FiniteElement &el2,
+   FaceElementTransformations &Tr, const Vector &elfun, const Vector &melfun, const Vector &elfun_old, const Vector &elfun_av, Vector &elvect)
+{
+   mfem_error("NonlinearFormIntegrator::AssembleFaceVector"
+              "(mixed version including old states and artificial viscosity/resistivity) is not overloaded!");
+}
+
 void NonlinearFormIntegrator::AssembleElementGrad(
    const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun,
    DenseMatrix &elmat)
